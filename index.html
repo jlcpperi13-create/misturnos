@@ -82,6 +82,9 @@ small.note{display:block;color:var(--mut);font-size:16px;margin-top:6px}
 
   <h2>Copias y exportar</h2>
   <div class="row">
+    <button class="btn" id="bShare">📤 Enviar periodo (WhatsApp, correo…)</button>
+  </div>
+  <div class="row">
     <button class="btn sec" id="bCsv">📄 Exportar periodo (Excel)</button>
   </div>
   <div class="row">
@@ -328,12 +331,37 @@ $('lista').onclick=e=>{
   const h=e.target.closest('[data-t]');
   if(h){const id=h.dataset.t;abiertos.has(id)?abiertos.delete(id):abiertos.add(id);render()}
 };
-$('bCsv').onclick=()=>{
-  const l=filtrados();if(!l.length)return toast('No hay servicios en este periodo',true);
+// Prepara el CSV del periodo (se abre bien en Excel)
+function csvPeriodo(){
+  const l=filtrados();if(!l.length){toast('No hay servicios en este periodo',true);return null}
   const n=x=>String(x).replace('.',','),q=x=>'"'+String(x).replace(/"/g,'""')+'"';
   const cab=['Turno','Servicio','Inicio','Fin','Pago','Tipo servicio','Km','Origen','Destino','Taxímetro','Suplementos','Propinas','Peajes','Total'];
   const filas=l.map(s=>[q(s.turno),q(s.servicio),q(s.inicio),q(s.fin),q(s.pago),q(s.tipo),n(s.km),q(s.origen),q(s.destino),n(s.taximetro),n(s.suplementos),n(s.propinas),n(s.peajes),n(s.total)].join(';'));
-  descargar(`MisTurnos_${$('dDesde').value}_${$('dHasta').value}.csv`,'﻿'+cab.join(';')+'\n'+filas.join('\n'),'text/csv;charset=utf-8');
+  return {nombre:`MisTurnos_${$('dDesde').value}_${$('dHasta').value}.csv`,texto:'﻿'+cab.join(';')+'\n'+filas.join('\n'),lista:l};
+}
+$('bCsv').onclick=()=>{
+  const c=csvPeriodo();if(!c)return;
+  descargar(c.nombre,c.texto,'text/csv;charset=utf-8');
+};
+// Enviar el periodo con el menú Compartir del móvil (WhatsApp, Gmail, Drive...)
+$('bShare').onclick=async()=>{
+  const c=csvPeriodo();if(!c)return;
+  const t=totales(c.lista);
+  const desde=$('dDesde').value.split('-').reverse().join('/'),hasta=$('dHasta').value.split('-').reverse().join('/');
+  const resumen=`Turnos del ${desde} al ${hasta}\n`+
+    `Recaudado: ${eur(t.total)}\nEfectivo: ${eur(t.efectivo)}\nTarjeta: ${eur(t.tarjeta)}`+
+    (t.otro?`\nOtros pagos: ${eur(t.otro)}`:'')+`\nServicios: ${t.n} · ${kmf(t.km)}`;
+  const file=new File([c.texto],c.nombre,{type:'text/csv'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Turnos '+desde+' - '+hasta,text:resumen});
+    }else{
+      descargar(c.nombre,c.texto,'text/csv;charset=utf-8');
+      toast('Este móvil no permite compartir archivos: se ha descargado el CSV');
+    }
+  }catch(err){
+    if(err.name!=='AbortError')toast('No se pudo compartir: '+err.message,true);
+  }
 };
 $('bBackup').onclick=()=>{
   if(!db.servicios.length)return toast('No hay datos que guardar',true);
