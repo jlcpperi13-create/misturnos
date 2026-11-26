@@ -281,6 +281,10 @@ function descargar(nombre,contenido,tipo){
 $('bImport').onclick=()=>$('fileCsv').click();
 $('fileCsv').onchange=async e=>{
   const files=[...e.target.files];e.target.value='';
+  await importarArchivos(files);
+};
+// Importa una lista de archivos CSV (desde el botón o desde "Compartir")
+async function importarArchivos(files){
   let add=0,dup=0,errs=[],ultimo='';
   for(const f of files){
     try{const ss=csvAServicios(await leerTexto(f));const r=mezclar(db.servicios,ss);add+=r.added;dup+=r.dup;ultimo=ss[0].inicio.slice(0,10)}
@@ -296,7 +300,26 @@ $('fileCsv').onchange=async e=>{
     document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
   }
   render();
-};
+}
+// Recoge los CSV que llegan por "Compartir → MisTurnos" (los guarda el sw.js)
+async function recogerCompartidos(){
+  if(!new URLSearchParams(location.search).has('compartido'))return;
+  history.replaceState(null,'',location.pathname);
+  if(!('caches' in window))return;
+  try{
+    const cache=await caches.open('misturnos-compartidos');
+    const claves=await cache.keys();
+    const files=[];
+    for(const req of claves){
+      const resp=await cache.match(req);
+      const nombre=decodeURIComponent(resp.headers.get('X-Nombre')||'turno.csv');
+      files.push(new File([await resp.blob()],nombre));
+      await cache.delete(req);
+    }
+    if(files.length)await importarArchivos(files);
+    else toast('No llegó ningún archivo',true);
+  }catch(err){toast('Error al recibir el archivo: '+err.message,true)}
+}
 document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setRango(c.dataset.r));
 $('dDesde').onchange=$('dHasta').onchange=()=>{document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));render()};
 $('lista').onclick=e=>{
@@ -328,17 +351,8 @@ $('fileJson').onchange=async e=>{
 };
 
 load();setRango('mes');
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-</script>
-  <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
-  }
-</script>
-  <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
-  }
+recogerCompartidos();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
 </html>

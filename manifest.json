@@ -11,10 +11,7 @@
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
-  ]
-}{
-  "_instrucciones": "Copia SOLO el bloque share_target dentro de tu manifest.json (al mismo nivel que name, start_url, icons...). Borra esta línea _instrucciones.",
-
+  ],
   "share_target": {
     "action": "./compartir",
     "method": "POST",
