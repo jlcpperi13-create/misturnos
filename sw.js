@@ -1,23 +1,25 @@
-const CACHE='misturnos-v1';
-const FILES=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)));self.skipWaiting()});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
-// Red primero (para recibir actualizaciones), caché si no hay conexión
 // ================================================================
-// MisTurnos — recibir CSV desde el menú "Compartir" de Android
-// Pega esto en tu sw.js ANTES de cualquier otro
-// self.addEventListener('fetch', ...) que ya tengas.
+// sw.js — Service worker de MisTurnos
+// Sirve para recibir los CSV desde el menú "Compartir" de Android.
+// Este archivo va en la MISMA carpeta que index.html y manifest.json.
 // ================================================================
 
+const VERSION = 'misturnos-v1';          // súbelo (v2, v3...) cada vez que cambies este archivo
 const CACHE_COMPARTIDOS = 'misturnos-compartidos';
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Llega un archivo desde "Compartir → MisTurnos"
   if (event.request.method === 'POST' && url.pathname.endsWith('/compartir')) {
-    // Que ningún otro listener de fetch toque esta petición
-    event.stopImmediatePropagation();
-
     event.respondWith((async () => {
       try {
         const datos = await event.request.formData();
@@ -38,15 +40,5 @@ self.addEventListener('fetch', (event) => {
       return Response.redirect(destino, 303);
     })());
   }
-});
-
-// ⚠️ IMPORTANTE: si en tu evento 'activate' borras las cachés antiguas,
-// excluye 'misturnos-compartidos' para no borrar los archivos recibidos.
-// Ejemplo:
-//   keys.filter(k => k !== CACHE_ACTUAL && k !== CACHE_COMPARTIDOS)
-//       .map(k => caches.delete(k))
-
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match('./index.html'))));
+  // Todo lo demás pasa normal, sin tocarlo.
 });
