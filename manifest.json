@@ -1,6 +1,6 @@
 {
   "name": "MisTurnos",
-  "short_name": "MisTurnos",
+  "short_name": "misturnos",
   "description": "Archivador de turnos del taxímetro",
   "start_url": "./",
   "scope": "./",
