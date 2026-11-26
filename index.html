@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f1115">
+<title>MisTurnos</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#0f1115;--card:#1b1f27;--card2:#242a35;--txt:#f5f5f5;--mut:#c0c5cf;--acc:#ffd23f;--ok:#5ad17a;--blue:#6db3ff;--warn:#ff8a65;--line:#323947}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:20px/1.4 system-ui,-apple-system,Roboto,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:28px}
+h1 span{color:var(--acc)}
+h2{font-size:22px;margin:22px 0 6px}
+main{padding:12px 16px 60px;max-width:720px;margin:0 auto}
+button{font:inherit}
+.btn{display:block;width:100%;padding:18px;font-size:22px;font-weight:800;border:0;border-radius:14px;background:var(--acc);color:#111;margin:10px 0;cursor:pointer}
+.btn.sec{background:var(--card);color:var(--txt);border:2px solid var(--line);font-weight:700}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .btn{flex:1;min-width:140px}
+.chip{flex:1;padding:12px 10px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--txt);font-size:19px;font-weight:700;cursor:pointer}
+.chip.on{border-color:var(--acc);color:var(--acc)}
+.dates{display:flex;gap:8px;margin-top:10px}
+.dates label{flex:1;color:var(--mut);font-size:17px}
+input[type=date]{width:100%;padding:12px;font-size:19px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--txt);color-scheme:dark}
+.card{background:var(--card);border-radius:16px;padding:16px;margin:12px 0;border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card2);border-radius:12px;padding:12px}
+.stat .l{color:var(--mut);font-size:17px}
+.stat .v{font-size:26px;font-weight:800}
+.stat.big{grid-column:1/-1}
+.stat.big .v{font-size:38px;color:var(--acc)}
+.v.ef{color:var(--ok)}.v.tj{color:var(--blue)}
+.turno-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;cursor:pointer}
+.turno-h .t1{font-size:22px;font-weight:800}
+.turno-h .t2{color:var(--mut);font-size:18px}
+.turno-h .tot{font-size:26px;font-weight:800;color:var(--acc);white-space:nowrap}
+.mini{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:18px}
+.mini b.ef{color:var(--ok)}.mini b.tj{color:var(--blue)}
+.serv{border-top:1px solid var(--line);padding:12px 0}
+.serv .a{display:flex;justify-content:space-between;font-weight:800;font-size:21px}
+.serv .b{color:var(--mut);font-size:18px;margin-top:4px}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:16px;font-weight:800;margin-left:6px;vertical-align:middle}
+.badge.ef{background:#1f3d29;color:var(--ok)}
+.badge.tj{background:#1c3047;color:var(--blue)}
+.badge.ot{background:#3a3a3a;color:#ddd}
+.badge.w{background:#4a2a20;color:var(--warn)}
+.del{margin-top:12px;background:transparent;border:2px solid #6b3a30;color:var(--warn);padding:10px 14px;border-radius:12px;font-size:18px;font-weight:700;cursor:pointer}
+.empty{color:var(--mut);text-align:center;padding:30px 10px}
+#toast{position:fixed;left:12px;right:12px;bottom:16px;max-width:700px;margin:0 auto;padding:16px;border-radius:14px;background:#244a30;color:#fff;font-size:19px;font-weight:700;display:none;z-index:10;box-shadow:0 6px 20px #0008}
+#toast.err{background:#5a2a22}
+.hide{display:none}
+small.note{display:block;color:var(--mut);font-size:16px;margin-top:6px}
+</style>
+</head>
+<body>
+<header><h1>Mis<span>Turnos</span></h1></header>
+<main>
+  <input type="file" id="fileCsv" accept=".csv,text/csv,text/plain" multiple class="hide">
+  <input type="file" id="fileJson" accept=".json,application/json" class="hide">
+  <button class="btn" id="bImport">📥 Importar turno (CSV)</button>
+
+  <h2>Periodo</h2>
+  <div class="row">
+    <button class="chip" data-r="mes">Este mes</button>
+    <button class="chip" data-r="ant">Mes pasado</button>
+    <button class="chip" data-r="todo">Todo</button>
+  </div>
+  <div class="dates">
+    <label>Desde<input type="date" id="dDesde"></label>
+    <label>Hasta<input type="date" id="dHasta"></label>
+  </div>
+
+  <div class="card" id="resumen"></div>
+
+  <h2>Turnos</h2>
+  <div id="lista"></div>
+
+  <h2>Copias y exportar</h2>
+  <div class="row">
+    <button class="btn sec" id="bCsv">📄 Exportar periodo (Excel)</button>
+  </div>
+  <div class="row">
+    <button class="btn sec" id="bBackup">💾 Guardar copia</button>
+    <button class="btn sec" id="bRestore">♻️ Restaurar copia</button>
+  </div>
+  <small class="note">Los datos se guardan solo en este móvil. Haz una copia de vez en cuando por si se borran los datos del navegador.</small>
+</main>
+<div id="toast"></div>
+
+<script>
+/*CORE*/
+function norm(h){return String(h).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+function num(s){
+  if(s==null)return 0;
+  s=String(s).replace(/[^\d,.\-]/g,'');
+  if(s.indexOf(',')>=0)s=s.replace(/\./g,'').replace(',','.');
+  const n=parseFloat(s);return isNaN(n)?0:n;
+}
+function r2(n){return Math.round(n*100)/100}
+function parseFecha(s){
+  // "26/11/26 10:43" -> "2026-11-26 10:43"
+  const m=String(s||'').trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if(!m)return '';
+  let y=+m[3];if(y<100)y+=2000;
+  const p=n=>String(n).padStart(2,'0');
+  return y+'-'+p(m[2])+'-'+p(m[1])+' '+p(m[4]||0)+':'+p(m[5]||0);
+}
+function parseCSV(t){
+  t=t.replace(/^﻿/,'');
+  const first=t.split(/\r?\n/)[0]||'';
+  const d=(first.split(';').length>first.split(',').length)?';':',';
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(q){
+      if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}
+      else f+=c;
+    }else{
+      if(c==='"')q=true;
+      else if(c===d){row.push(f);f=''}
+      else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f=''}
+      else f+=c;
+    }
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row)}
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+function tipoPago(s){
+  const n=norm(s);
+  if(n.indexOf('efectivo')>=0||n.indexOf('metalico')>=0)return 'efectivo';
+  if(n.indexOf('tarjeta')>=0||n.indexOf('tpv')>=0||n.indexOf('card')>=0)return 'tarjeta';
+  return 'otro';
+}
+function limpiaDir(s){return String(s||'').replace(/\s*Galicia\s+Espa(ñ|n)a\s*$/i,'').replace(/^Lugar del\s+/i,'').trim()}
+// Convierte el texto del CSV de Smart TD en una lista de servicios
+function csvAServicios(text){
+  const rows=parseCSV(text);
+  if(rows.length<2)throw new Error('El archivo no tiene servicios');
+  const H=rows[0].map(norm);
+  const col=k=>H.indexOf(k);
+  const C={turno:col('numerodeturno'),serv:col('servicio'),ini:col('fechainicio'),fin:col('fechafin'),pago:col('metododepago'),
+    tipo:col('tipodeservicio'),km:col('distanciakm'),dIni:col('direccioninicio'),dFin:col('direccionfin'),tarifa:col('tarifa'),
+    taxi:col('importedeltaximetroeur'),sup:col('suplementoseur'),prop:col('propinaseur'),peaje:col('peajeseur'),total:col('totaleur')};
+  if(C.ini<0||(C.total<0&&C.taxi<0))throw new Error('No reconozco el formato del archivo (faltan columnas de fecha o importe)');
+  const g=(r,i)=>i>=0&&i<r.length?String(r[i]).trim():'';
+  const out=[];
+  for(let k=1;k<rows.length;k++){
+    const r=rows[k];
+    const inicio=parseFecha(g(r,C.ini));
+    if(!inicio)continue;
+    const taximetro=num(g(r,C.taxi)),suplementos=num(g(r,C.sup)),propinas=num(g(r,C.prop)),peajes=num(g(r,C.peaje));
+    let total=C.total>=0?num(g(r,C.total)):0;
+    if(!total)total=r2(taximetro+suplementos+propinas+peajes);
+    out.push({
+      turno:g(r,C.turno),servicio:g(r,C.serv),inicio,fin:parseFecha(g(r,C.fin))||inicio,
+      pago:g(r,C.pago),pagoTipo:tipoPago(g(r,C.pago)),tipo:g(r,C.tipo),km:num(g(r,C.km)),
+      origen:limpiaDir(g(r,C.dIni)),destino:limpiaDir(g(r,C.dFin)),tarifa:g(r,C.tarifa),
+      taximetro,suplementos,propinas,peajes,total
+    });
+  }
+  if(!out.length)throw new Error('No encontré servicios con fecha válida');
+  return out;
+}
+function claveServ(s){return s.servicio+'|'+s.inicio}
+function diasEntre(a,b){return Math.abs((new Date(a.slice(0,10))-new Date(b.slice(0,10)))/864e5)}
+// Mezcla servicios nuevos en la base sin duplicar; asigna id de turno
+function mezclar(base,nuevos){
+  const existentes=new Set(base.map(claveServ));
+  let added=0,dup=0;
+  for(const s of nuevos){
+    if(existentes.has(claveServ(s))){dup++;continue}
+    if(!s.turnoId){
+      const mismo=base.find(b=>b.turno===s.turno&&diasEntre(b.inicio,s.inicio)<=1);
+      s.turnoId=mismo?mismo.turnoId:(s.turno||'x')+'_'+s.inicio.slice(0,10);
+    }
+    base.push(s);existentes.add(claveServ(s));added++;
+  }
+  base.sort((a,b)=>a.inicio<b.inicio?-1:a.inicio>b.inicio?1:0);
+  return {added,dup};
+}
+function totales(lista){
+  const t={n:lista.length,total:0,efectivo:0,tarjeta:0,otro:0,km:0,taximetro:0,suplementos:0,propinas:0,peajes:0};
+  for(const s of lista){
+    t.total+=s.total;t[s.pagoTipo]+=s.total;t.km+=s.km;
+    t.taximetro+=s.taximetro;t.suplementos+=s.suplementos;t.propinas+=s.propinas;t.peajes+=s.peajes;
+  }
+  for(const k in t)if(k!=='n')t[k]=r2(t[k]);
+  return t;
+}
+function agruparTurnos(lista){
+  const m=new Map();
+  for(const s of lista){if(!m.has(s.turnoId))m.set(s.turnoId,[]);m.get(s.turnoId).push(s)}
+  return [...m.entries()].map(([id,ss])=>({id,numero:ss[0].turno,inicio:ss[0].inicio,fin:ss[ss.length-1].fin,servicios:ss}))
+    .sort((a,b)=>a.inicio<b.inicio?1:-1);
+}
+/*ENDCORE*/
+
+const KEY='misturnos_v1';
+let db={servicios:[]};
+function load(){try{const r=localStorage.getItem(KEY);if(r)db=JSON.parse(r)}catch(e){}if(!db||!Array.isArray(db.servicios))db={servicios:[]}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){toast('No se pudo guardar: '+e.message,true);return false}}
+
+const $=id=>document.getElementById(id);
+const eur=n=>n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const kmf=n=>n.toLocaleString('es-ES',{maximumFractionDigits:1})+' km';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DIAS=['dom','lun','mar','mié','jue','vie','sáb'];
+function fechaBonita(iso){const [y,m,d]=iso.slice(0,10).split('-');const dt=new Date(+y,m-1,+d);return DIAS[dt.getDay()]+' '+d+'/'+m+'/'+y.slice(2)}
+const hora=iso=>iso.slice(11,16);
+const hoyISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+
+let tt;
+function toast(msg,err){const t=$('toast');t.textContent=msg;t.className=err?'err':'';t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',4000)}
+
+function setRango(r){
+  const d=new Date(),y=d.getFullYear(),m=d.getMonth();
+  const f=(Y,M,D)=>{const x=new Date(Y,M,D);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+  if(r==='mes'){$('dDesde').value=f(y,m,1);$('dHasta').value=f(y,m+1,0)}
+  else if(r==='ant'){$('dDesde').value=f(y,m-1,1);$('dHasta').value=f(y,m,0)}
+  else{const s=db.servicios;$('dDesde').value=s.length?s[0].inicio.slice(0,10):hoyISO();$('dHasta').value=s.length?s[s.length-1].inicio.slice(0,10):hoyISO()}
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.r===r));
+  render();
+}
+function filtrados(){
+  const a=$('dDesde').value||'0000',b=$('dHasta').value||'9999';
+  return db.servicios.filter(s=>{const d=s.inicio.slice(0,10);return d>=a&&d<=b});
+}
+const abiertos=new Set();
+function render(){
+  const lista=filtrados(),t=totales(lista),turnos=agruparTurnos(lista);
+  const epk=t.km?t.total/t.km:0,eps=t.n?t.total/t.n:0;
+  $('resumen').innerHTML=`<div class="grid">
+    <div class="stat big"><div class="l">Recaudado</div><div class="v">${eur(t.total)}</div></div>
+    <div class="stat"><div class="l">Efectivo</div><div class="v ef">${eur(t.efectivo)}</div></div>
+    <div class="stat"><div class="l">Tarjeta</div><div class="v tj">${eur(t.tarjeta)}</div></div>
+    <div class="stat"><div class="l">Turnos</div><div class="v">${turnos.length}</div></div>
+    <div class="stat"><div class="l">Servicios</div><div class="v">${t.n}</div></div>
+    <div class="stat"><div class="l">Km con cliente</div><div class="v">${kmf(t.km)}</div></div>
+    <div class="stat"><div class="l">€/km</div><div class="v">${epk.toLocaleString('es-ES',{maximumFractionDigits:2})}</div></div>
+    <div class="stat"><div class="l">Media servicio</div><div class="v">${eur(eps)}</div></div>
+    <div class="stat"><div class="l">Suplementos</div><div class="v">${eur(t.suplementos)}</div></div>
+    ${t.propinas?`<div class="stat"><div class="l">Propinas</div><div class="v">${eur(t.propinas)}</div></div>`:''}
+    ${t.peajes?`<div class="stat"><div class="l">Peajes</div><div class="v">${eur(t.peajes)}</div></div>`:''}
+    ${t.otro?`<div class="stat"><div class="l">Otros pagos</div><div class="v">${eur(t.otro)}</div></div>`:''}
+  </div>`;
+  if(!turnos.length){$('lista').innerHTML=`<div class="empty">${db.servicios.length?'No hay turnos en este periodo.':'Aún no hay turnos. Pulsa «Importar turno» y elige el CSV del taxímetro.'}</div>`;return}
+  $('lista').innerHTML=turnos.map(tu=>{
+    const x=totales(tu.servicios),open=abiertos.has(tu.id);
+    const servs=open?tu.servicios.map(s=>{
+      const bc=s.pagoTipo==='efectivo'?'ef':s.pagoTipo==='tarjeta'?'tj':'ot';
+      const bajo=s.km>2&&s.total/s.km<1;
+      return `<div class="serv"><div class="a"><span>${hora(s.inicio)} <span class="badge ${bc}">${esc(s.pago||'—')}</span>${bajo?'<span class="badge w">&lt;1 €/km</span>':''}</span><span>${eur(s.total)}</span></div>
+      <div class="b">${kmf(s.km)} · ${hora(s.inicio)}–${hora(s.fin)}${s.suplementos?' · supl. '+eur(s.suplementos):''}${s.propinas?' · propina '+eur(s.propinas):''}${s.peajes?' · peaje '+eur(s.peajes):''}</div>
+      <div class="b">${esc(s.origen)} → ${esc(s.destino)}</div></div>`}).join('')+
+      `<button class="del" data-del="${esc(tu.id)}">🗑️ Borrar este turno</button>`:'';
+    return `<div class="card"><div class="turno-h" data-t="${esc(tu.id)}">
+      <div><div class="t1">${fechaBonita(tu.inicio)}</div><div class="t2">Turno ${esc(tu.numero)} · ${hora(tu.inicio)}–${hora(tu.fin)} · ${x.n} serv.</div></div>
+      <div class="tot">${eur(x.total)}</div></div>
+      <div class="mini"><span>Efectivo <b class="ef">${eur(x.efectivo)}</b></span><span>Tarjeta <b class="tj">${eur(x.tarjeta)}</b></span><span>${kmf(x.km)}</span></div>
+      ${servs}</div>`;
+  }).join('');
+}
+
+async function leerTexto(file){
+  const buf=await file.arrayBuffer();
+  let t=new TextDecoder('utf-8').decode(buf);
+  if(t.indexOf('�')>=0)t=new TextDecoder('windows-1252').decode(buf);
+  return t;
+}
+function descargar(nombre,contenido,tipo){
+  const blob=new Blob([contenido],{type:tipo});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=nombre;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1000);
+}
+
+$('bImport').onclick=()=>$('fileCsv').click();
+$('fileCsv').onchange=async e=>{
+  const files=[...e.target.files];e.target.value='';
+  let add=0,dup=0,errs=[],ultimo='';
+  for(const f of files){
+    try{const ss=csvAServicios(await leerTexto(f));const r=mezclar(db.servicios,ss);add+=r.added;dup+=r.dup;ultimo=ss[0].inicio.slice(0,10)}
+    catch(err){errs.push(f.name+': '+err.message)}
+  }
+  if(add)save();
+  if(errs.length)toast(errs.join(' · '),true);
+  else toast(add?`✅ ${add} servicios importados`+(dup?` (${dup} ya estaban)`:''):'Ese turno ya estaba importado');
+  // mostrar el periodo donde cae lo importado
+  if(ultimo&&(ultimo<$('dDesde').value||ultimo>$('dHasta').value)){
+    $('dDesde').value=ultimo.slice(0,8)+'01';const [y,m]=ultimo.split('-');
+    const fin=new Date(+y,+m,0).getDate();$('dHasta').value=ultimo.slice(0,8)+String(fin).padStart(2,'0');
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  }
+  render();
+};
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setRango(c.dataset.r));
+$('dDesde').onchange=$('dHasta').onchange=()=>{document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));render()};
+$('lista').onclick=e=>{
+  const del=e.target.closest('[data-del]');
+  if(del){const id=del.dataset.del;if(confirm('¿Borrar este turno y todos sus servicios?')){db.servicios=db.servicios.filter(s=>s.turnoId!==id);save();render();toast('Turno borrado')}return}
+  const h=e.target.closest('[data-t]');
+  if(h){const id=h.dataset.t;abiertos.has(id)?abiertos.delete(id):abiertos.add(id);render()}
+};
+$('bCsv').onclick=()=>{
+  const l=filtrados();if(!l.length)return toast('No hay servicios en este periodo',true);
+  const n=x=>String(x).replace('.',','),q=x=>'"'+String(x).replace(/"/g,'""')+'"';
+  const cab=['Turno','Servicio','Inicio','Fin','Pago','Tipo servicio','Km','Origen','Destino','Taxímetro','Suplementos','Propinas','Peajes','Total'];
+  const filas=l.map(s=>[q(s.turno),q(s.servicio),q(s.inicio),q(s.fin),q(s.pago),q(s.tipo),n(s.km),q(s.origen),q(s.destino),n(s.taximetro),n(s.suplementos),n(s.propinas),n(s.peajes),n(s.total)].join(';'));
+  descargar(`MisTurnos_${$('dDesde').value}_${$('dHasta').value}.csv`,'﻿'+cab.join(';')+'\n'+filas.join('\n'),'text/csv;charset=utf-8');
+};
+$('bBackup').onclick=()=>{
+  if(!db.servicios.length)return toast('No hay datos que guardar',true);
+  descargar(`MisTurnos_copia_${hoyISO()}.json`,JSON.stringify({app:'MisTurnos',version:1,exportado:new Date().toISOString(),servicios:db.servicios}),'application/json');
+};
+$('bRestore').onclick=()=>$('fileJson').click();
+$('fileJson').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const j=JSON.parse(await leerTexto(f));
+    if(!j||j.app!=='MisTurnos'||!Array.isArray(j.servicios))throw new Error('No es una copia de MisTurnos');
+    const r=mezclar(db.servicios,j.servicios);save();setRango('todo');
+    toast(`✅ Copia restaurada: ${r.added} servicios nuevos`+(r.dup?` (${r.dup} ya estaban)`:''));
+  }catch(err){toast('Error: '+err.message,true)}
+};
+
+load();setRango('mes');
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
